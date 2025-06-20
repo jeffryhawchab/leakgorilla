@@ -1,0 +1,9 @@
+# Core dependencies
+requests==2.31.0
+beautifulsoup4==4.12.2
+urllib3==2.0.4
+
+# Optional (uncomment if needed)
+# tldextract==3.4.4  # For better domain handling
+# colorama==0.4.6    # For colored console output
+# python-dotenv==1.0.0  # For .env configuration
