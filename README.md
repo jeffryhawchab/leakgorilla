@@ -21,7 +21,7 @@ Installation
 ### 1\. Clone the repository:
 
     git clone https://github.com/jeffryhawchab/leakgorilla.git
-    cd web-secret-scanner
+    cd leakgorilla
 
 ### 2\. Set up the environment:
 
