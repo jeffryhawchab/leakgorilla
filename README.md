@@ -45,7 +45,7 @@ Usage
 
 ### Advanced options:
 
-    python scanner.py https://example.com --max-pages 100 --timeout 15 --output results.txt
+    python3 main.py https://example.com --max-pages 100 --timeout 15 --output results.txt
 
 
 
