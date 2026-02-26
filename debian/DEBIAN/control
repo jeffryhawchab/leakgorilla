@@ -1,0 +1,17 @@
+Package: leakgorilla
+Version: 1.0.0
+Section: utils
+Priority: optional
+Architecture: all
+Depends: python3 (>= 3.6), python3-requests, python3-bs4
+Maintainer: Jeffrey Hawchab <your-email@example.com>
+Description: Advanced web secret scanner
+ LeakGorilla is a powerful tool that crawls websites and scans for
+ exposed API keys, credentials, and other sensitive information.
+ .
+ Features:
+  - Detects 20+ types of secrets (OpenAI, Claude, AWS, etc.)
+  - Crawls websites recursively
+  - Scans HTML and JavaScript files
+  - JSON and text output formats
+Homepage: https://github.com/jeffryhawchab/leakgorilla

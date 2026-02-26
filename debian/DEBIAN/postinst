@@ -1,0 +1,9 @@
+#!/bin/bash
+set -e
+
+chmod +x /usr/bin/leakgorilla
+
+echo "LeakGorilla installed successfully!"
+echo "Usage: leakgorilla <url> [options]"
+
+exit 0
