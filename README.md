@@ -62,6 +62,36 @@ LeakGorilla automates the tedious process of hunting for exposed secrets in web 
 
 ## 🚀 Quick Start
 
+### Setup: Python virtual environment
+
+Create and activate a virtual environment, then install dependencies.
+
+Linux / macOS (bash / zsh):
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Windows (PowerShell):
+```powershell
+python -m venv .venv
+.\\.venv\\Scripts\\Activate.ps1
+pip install -r requirements.txt
+```
+
+Windows (cmd.exe):
+```cmd
+python -m venv .venv
+.\\.venv\\Scripts\\activate.bat
+pip install -r requirements.txt
+```
+
+Deactivate the virtual environment with:
+```bash
+deactivate
+```
+
 ### Basic Scan
 Scan a website for exposed secrets:
 ```bash
