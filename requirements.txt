@@ -2,6 +2,7 @@
 requests==2.31.0
 beautifulsoup4==4.12.2
 urllib3==2.0.4
+aiohttp==3.9.4
 
 # Optional (uncomment if needed)
 # tldextract==3.4.4  # For better domain handling

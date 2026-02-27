@@ -346,3 +346,28 @@ MIT License - Copyright (c) 2026 Jeffrey Hawchab
 ---
 
 **Remember**: With great power comes great responsibility. Use LeakGorilla ethically and legally. 🦍
+
+## New Features (2026-02-27)
+
+- Rotating proxies with optional validation and background re-validation (`--proxies-file`, `--stream-proxies`, `--validate-proxies`, `--revalidate-minutes`).
+- Randomized user-agents loaded once and per-request rotation to reduce fingerprinting.
+- Configurable delay range (`--delay-min`, `--delay-max`) and lower default `--timeout` (4s) for faster scans.
+- Threaded, concurrent crawler with increased `--max-workers` for higher throughput.
+- Search-engine seeding from `dorks.conf` (supports searx, DuckDuckGo, Yandex) via `--use-search` to collect initial targets.
+- CSS files are skipped by default to reduce false positives; only HTML and JavaScript are scanned.
+
+See examples in the CLI section for usage of the new options.
+
+### Async Crawler
+
+- Added an aiohttp-based async crawler for higher throughput and lower overhead on I/O-bound scans. Use the `--async` flag to enable it. Example:
+
+```bash
+python3 leakgorilla/scanner.py https://example.com --async --max-workers 50
+```
+
+### False Positive Reductions
+
+- Introduced `WHITELIST` rules to ignore long base64/blob-like matches and common image/assets, reducing false positives.
+- Tightened generic secret patterns to require longer token lengths by default.
+

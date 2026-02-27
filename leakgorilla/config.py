@@ -4,9 +4,11 @@
 OUTPUT_FILE = "web_secrets.txt"
 REDACT_LENGTH = 4
 MAX_PAGES = 50
-TIMEOUT = 10
-MAX_WORKERS = 5
-DELAY = 0
+TIMEOUT = 4
+MAX_WORKERS = 10
+# Delay is a range in seconds (min, max). Default 150-300ms
+DELAY_MIN = 0.15
+DELAY_MAX = 0.3
 VERBOSE = False
 
 # Severity levels for different secret types
@@ -104,6 +106,14 @@ PATTERNS = {
         r'(?i)bearer\s+[a-zA-Z0-9_\-\.=]{32,}'
     ],
     'Generic Secret': [
-        r'(?i)(?:secret|password|passwd|pwd)[\s:=]+[\'"`]([^\s\'"\`]{12,})[\'"`]'
+        r'(?i)(?:secret|password|passwd|pwd)[\s:=]+[\'"`]([^\s\'"\`]{16,})[\'"`]'
     ]
 }
+
+# Whitelist patterns to reduce false positives (if a match fits a whitelist, ignore it)
+WHITELIST = [
+    r'^[A-Za-z0-9+/=]{40,}$',  # long base64 blobs (likely assets)
+    r'^[0-9a-f]{32,}$',         # hex blobs often not secrets
+    r'\.(jpg|jpeg|png|gif|svg)$',
+    r'^data:image/.+',
+]
