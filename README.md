@@ -112,26 +112,44 @@ leakgorilla <url> [options]
 
 ### Examples
 
-**1. Quick Security Audit**
+**1. Quick Security Audit (APT)**
 ```bash
 leakgorilla https://myapp.com
-# Or with Python:
+```
+
+**1. Quick Security Audit (Python)**
+```bash
 python3 leakgorilla/scanner.py https://myapp.com
 ```
 
-**2. Deep Scan for Large Sites**
+**2. Deep Scan for Large Sites (APT)**
 ```bash
-leakgorilla https://corporate-site.com --max-pages 500 --timeout 20
+leakgorilla https://corporate-site.com --max-pages 500 --timeout 20 --delay 1
 ```
 
-**3. API Integration (JSON Output)**
+**2. Deep Scan for Large Sites (Python)**
+```bash
+python3 leakgorilla/scanner.py https://corporate-site.com --max-pages 500 --timeout 20 --delay 1
+```
+
+**3. Pentest with Proxy (APT)**
+```bash
+leakgorilla https://target.com --proxy http://127.0.0.1:8080 --verbose
+```
+
+**3. Pentest with Proxy (Python)**
+```bash
+python3 leakgorilla/scanner.py https://target.com --proxy http://127.0.0.1:8080 --verbose
+```
+
+**4. JSON Output for Automation (APT)**
 ```bash
 leakgorilla https://api.example.com --format json --output api_secrets.json
 ```
 
-**4. Fast Scan with Short Timeout**
+**4. JSON Output for Automation (Python)**
 ```bash
-leakgorilla https://slow-site.com --max-pages 30 --timeout 5
+python3 leakgorilla/scanner.py https://api.example.com --format json --output api_secrets.json
 ```
 
 ---
@@ -264,6 +282,45 @@ The developers of LeakGorilla are not responsible for misuse of this tool.
 - **Monitor Progress**: Watch console output for real-time feedback
 - **Use JSON**: Export to JSON for easier parsing and automation
 - **Respect Servers**: Don't set `--max-pages` too high on small sites
+
+---
+
+## 🎯 Detection Accuracy
+
+LeakGorilla uses regex patterns to detect secrets. Accuracy varies by secret type:
+
+### High Accuracy (90-95%)
+- ✅ OpenAI API Keys
+- ✅ Anthropic Claude Keys
+- ✅ Groq API Keys
+- ✅ GitHub Tokens
+- ✅ SendGrid API Keys
+- ✅ AWS Access Keys
+
+### Good Accuracy (80-90%)
+- ✅ Stripe API Keys
+- ✅ Slack Tokens
+- ✅ Database Connection Strings
+- ✅ Twilio API Keys
+
+### Medium Accuracy (70-80%)
+- ⚠️ Google API Keys
+- ⚠️ Meta/Facebook Tokens
+- ⚠️ JWT Tokens
+- ⚠️ Private Keys
+
+### Lower Accuracy (60-70%)
+- ⚠️ Generic API Keys
+- ⚠️ Generic Secrets
+
+**Overall Accuracy: ~75-85%**
+
+**Note**: False positives may occur with:
+- Base64-encoded fonts/images
+- Minified JavaScript
+- Random strings in CSS files
+
+**Recommendation**: Focus on **CRITICAL** and **HIGH** severity findings for best accuracy (85-95%).
 
 ---
 

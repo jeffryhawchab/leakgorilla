@@ -15,6 +15,32 @@ REDACT_LENGTH = 4
 MAX_PAGES = 50
 TIMEOUT = 10
 MAX_WORKERS = 5
+DELAY = 0
+VERBOSE = False
+
+# Severity levels
+SEVERITY = {
+    'OpenAI API Key': 'CRITICAL',
+    'Anthropic Claude API Key': 'CRITICAL',
+    'AWS Access Key': 'CRITICAL',
+    'AWS Secret Key': 'CRITICAL',
+    'Stripe API Key': 'CRITICAL',
+    'Private Key': 'CRITICAL',
+    'Groq API Key': 'HIGH',
+    'Google API Key': 'HIGH',
+    'Meta AI/Facebook API Key': 'HIGH',
+    'GitHub Token': 'HIGH',
+    'Database Connection String': 'HIGH',
+    'Slack Token': 'MEDIUM',
+    'Twilio API Key': 'MEDIUM',
+    'SendGrid API Key': 'MEDIUM',
+    'Mailgun API Key': 'MEDIUM',
+    'JWT Token': 'MEDIUM',
+    'OAuth Token': 'MEDIUM',
+    'Google Cloud Service Account': 'HIGH',
+    'Generic API Key': 'LOW',
+    'Generic Secret': 'LOW'
+}
 
 # Advanced patterns for web secrets with categorization
 PATTERNS = {
@@ -103,6 +129,7 @@ class SecretFinding:
         self.secret_type = secret_type
         self.context = context
         self.timestamp = datetime.now()
+        self.severity = SEVERITY.get(secret_type, 'LOW')
 
 def get_context(text, match, context_length=50):
     start = max(0, match.start() - context_length)
@@ -127,9 +154,22 @@ def scan_content(content, url, source_type):
 
 def scan_js_file(js_url, session):
     try:
+        if VERBOSE:
+            print(f"    → Scanning JS: {js_url}")
         response = session.get(js_url, timeout=TIMEOUT)
         if response.status_code == 200:
             return scan_content(response.text, js_url, "JavaScript file")
+    except:
+        pass
+    return []
+
+def scan_css_file(css_url, session):
+    try:
+        if VERBOSE:
+            print(f"    → Scanning CSS: {css_url}")
+        response = session.get(css_url, timeout=TIMEOUT)
+        if response.status_code == 200:
+            return scan_content(response.text, css_url, "CSS file")
     except:
         pass
     return []
@@ -140,10 +180,11 @@ def scan_page(url, html_content, session):
     # Scan HTML content
     findings.extend(scan_content(html_content, url, "HTML content"))
     
-    # Scan JavaScript files
     soup = BeautifulSoup(html_content, 'html.parser')
     js_urls = []
+    css_urls = []
     
+    # Collect JS files
     for script in soup.find_all('script'):
         if script.get('src'):
             js_url = urljoin(url, script['src'])
@@ -151,18 +192,31 @@ def scan_page(url, html_content, session):
         elif script.string:
             findings.extend(scan_content(script.string, url, "Inline JavaScript"))
     
-    # Scan JS files concurrently
+    # Collect CSS files
+    for link in soup.find_all('link', rel='stylesheet'):
+        if link.get('href'):
+            css_url = urljoin(url, link['href'])
+            css_urls.append(css_url)
+    
+    # Scan JS and CSS files concurrently
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        futures = {executor.submit(scan_js_file, js_url, session): js_url for js_url in js_urls}
+        futures = {}
+        for js_url in js_urls:
+            futures[executor.submit(scan_js_file, js_url, session)] = js_url
+        for css_url in css_urls:
+            futures[executor.submit(scan_css_file, css_url, session)] = css_url
+        
         for future in as_completed(futures):
             findings.extend(future.result())
     
     return findings
 
-def crawl_and_scan(start_url, max_pages, timeout):
-    global TIMEOUT, MAX_PAGES
+def crawl_and_scan(start_url, max_pages, timeout, delay, proxy, verbose):
+    global TIMEOUT, MAX_PAGES, DELAY, VERBOSE
     TIMEOUT = timeout
     MAX_PAGES = max_pages
+    DELAY = delay
+    VERBOSE = verbose
     
     visited = set()
     queue = [start_url]
@@ -174,10 +228,21 @@ def crawl_and_scan(start_url, max_pages, timeout):
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     })
     
+    if proxy:
+        session.proxies = {'http': proxy, 'https': proxy}
+        if VERBOSE:
+            print(f"Using proxy: {proxy}")
+    
     while queue and len(visited) < MAX_PAGES:
         url = queue.pop(0)
         if url in visited:
             continue
+        
+        if DELAY > 0 and len(visited) > 0:
+            if VERBOSE:
+                print(f"  ⏱ Waiting {DELAY}s...")
+            import time
+            time.sleep(DELAY)
             
         try:
             print(f"[{len(visited)+1}/{MAX_PAGES}] Scanning: {url}")
@@ -213,6 +278,7 @@ def save_findings(findings, output_file, output_format='txt'):
             'url': f.url,
             'source': f.source,
             'type': f.secret_type,
+            'severity': f.severity,
             'secret': f.matched_string,
             'context': f.context,
             'timestamp': f.timestamp.isoformat()
@@ -225,22 +291,34 @@ def save_findings(findings, output_file, output_format='txt'):
             f.write(f"Web Secret Scan Results - {datetime.now()}\n")
             f.write("="*80 + "\n\n")
             
-            # Group by type
-            by_type = defaultdict(list)
+            # Group by severity then type
+            by_severity = {'CRITICAL': [], 'HIGH': [], 'MEDIUM': [], 'LOW': []}
             for finding in findings:
-                by_type[finding.secret_type].append(finding)
+                by_severity[finding.severity].append(finding)
             
-            for secret_type, items in sorted(by_type.items()):
+            for severity in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
+                items = by_severity[severity]
+                if not items:
+                    continue
+                    
                 f.write(f"\n{'='*80}\n")
-                f.write(f"{secret_type} ({len(items)} found)\n")
+                f.write(f"{severity} SEVERITY ({len(items)} found)\n")
                 f.write(f"{'='*80}\n\n")
                 
+                by_type = defaultdict(list)
                 for finding in items:
-                    f.write(f"URL: {finding.url}\n")
-                    f.write(f"Source: {finding.source}\n")
-                    f.write(f"Secret: {finding.matched_string}\n")
-                    f.write(f"Context: ...{finding.context}...\n")
+                    by_type[finding.secret_type].append(finding)
+                
+                for secret_type, type_items in sorted(by_type.items()):
+                    f.write(f"\n[{secret_type}] - {len(type_items)} found\n")
                     f.write("-"*80 + "\n")
+                    
+                    for finding in type_items:
+                        f.write(f"URL: {finding.url}\n")
+                        f.write(f"Source: {finding.source}\n")
+                        f.write(f"Secret: {finding.matched_string}\n")
+                        f.write(f"Context: ...{finding.context}...\n")
+                        f.write("-"*80 + "\n")
 
 def print_findings(findings):
     print(f"\n{'='*80}")
@@ -248,38 +326,55 @@ def print_findings(findings):
     print(f"{'='*80}")
     print(f"Total secrets found: {len(findings)}\n")
     
-    # Group by type
-    by_type = defaultdict(list)
+    # Group by severity
+    by_severity = {'CRITICAL': [], 'HIGH': [], 'MEDIUM': [], 'LOW': []}
     for finding in findings:
-        by_type[finding.secret_type].append(finding)
+        by_severity[finding.severity].append(finding)
     
-    for secret_type, items in sorted(by_type.items()):
-        print(f"\n[{secret_type}] - {len(items)} found")
-        print("-"*80)
-        
-        for finding in items[:3]:  # Show first 3 of each type
-            secret = finding.matched_string
-            if len(secret) > REDACT_LENGTH * 2:
-                redacted = secret[:REDACT_LENGTH] + "..." + secret[-REDACT_LENGTH:]
-            else:
-                redacted = "***REDACTED***"
+    for severity in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
+        items = by_severity[severity]
+        if not items:
+            continue
             
-            print(f"  URL: {finding.url}")
-            print(f"  Source: {finding.source}")
-            print(f"  Value: {redacted}")
-            print()
+        print(f"\n{'='*80}")
+        print(f"{severity} SEVERITY - {len(items)} found")
+        print(f"{'='*80}")
         
-        if len(items) > 3:
-            print(f"  ... and {len(items) - 3} more\n")
+        by_type = defaultdict(list)
+        for finding in items:
+            by_type[finding.secret_type].append(finding)
+        
+        for secret_type, type_items in sorted(by_type.items()):
+            print(f"\n[{secret_type}] - {len(type_items)} found")
+            print("-"*80)
+            
+            for finding in type_items[:2]:  # Show first 2 of each type
+                secret = finding.matched_string
+                if len(secret) > REDACT_LENGTH * 2:
+                    redacted = secret[:REDACT_LENGTH] + "..." + secret[-REDACT_LENGTH:]
+                else:
+                    redacted = "***REDACTED***"
+                
+                print(f"  URL: {finding.url}")
+                print(f"  Source: {finding.source}")
+                print(f"  Value: {redacted}")
+                print()
+            
+            if len(type_items) > 2:
+                print(f"  ... and {len(type_items) - 2} more\n")
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Advanced Web Secret Scanner - Detect API keys, tokens, and credentials',
+        description='LeakGorilla - Advanced Web Secret Scanner\nDetect API keys, tokens, and credentials in web applications',
+        epilog='Author: Jeffrey Hawchab | GitHub: https://github.com/jeffryhawchab/leakgorilla',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument('url', help='Target URL to scan')
     parser.add_argument('--max-pages', type=int, default=50, help='Maximum pages to scan (default: 50)')
     parser.add_argument('--timeout', type=int, default=10, help='Request timeout in seconds (default: 10)')
+    parser.add_argument('--delay', type=float, default=0, help='Delay between requests in seconds (default: 0)')
+    parser.add_argument('--proxy', help='Proxy URL (e.g., http://127.0.0.1:8080)')
+    parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output')
     parser.add_argument('--output', default='web_secrets.txt', help='Output file (default: web_secrets.txt)')
     parser.add_argument('--format', choices=['txt', 'json'], default='txt', help='Output format (default: txt)')
     
@@ -295,9 +390,15 @@ def main():
     print(f"Target: {start_url}")
     print(f"Max Pages: {args.max_pages}")
     print(f"Timeout: {args.timeout}s")
+    if args.delay:
+        print(f"Delay: {args.delay}s")
+    if args.proxy:
+        print(f"Proxy: {args.proxy}")
+    if args.verbose:
+        print(f"Verbose: Enabled")
     print(f"{'='*80}\n")
     
-    findings, visited = crawl_and_scan(start_url, args.max_pages, args.timeout)
+    findings, visited = crawl_and_scan(start_url, args.max_pages, args.timeout, args.delay, args.proxy, args.verbose)
     
     print(f"\n{'='*80}")
     print(f"Scan completed: {len(visited)} pages scanned")
