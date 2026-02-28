@@ -43,7 +43,7 @@ LeakGorilla automates the tedious process of hunting for exposed secrets in web 
 
 ### Payment & Communication
 - **Stripe** API Keys (Live & Test)
-- **Twilio** API Keys
+- ~~Twilio API Keys~~ (disabled by default)
 - **SendGrid** API Keys
 - **Mailgun** API Keys
 
@@ -301,7 +301,7 @@ LeakGorilla uses regex patterns to detect secrets. Accuracy varies by secret typ
 - ✅ Stripe API Keys
 - ✅ Slack Tokens
 - ✅ Database Connection Strings
-- ✅ Twilio API Keys
+- ❌ Twilio API Keys (disabled by default)
 
 ### Medium Accuracy (70-80%)
 - ⚠️ Google API Keys

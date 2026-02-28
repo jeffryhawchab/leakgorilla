@@ -32,7 +32,7 @@ SEVERITY = {
     'GitHub Token': 'HIGH',
     'Database Connection String': 'HIGH',
     'Slack Token': 'MEDIUM',
-    'Twilio API Key': 'MEDIUM',
+    # 'Twilio API Key': 'MEDIUM',
     'SendGrid API Key': 'MEDIUM',
     'Mailgun API Key': 'MEDIUM',
     'JWT Token': 'MEDIUM',
@@ -89,9 +89,9 @@ PATTERNS = {
     'Slack Token': [
         r'xox[baprs]-[0-9]{10,13}-[0-9]{10,13}-[a-zA-Z0-9]{24,}'
     ],
-    'Twilio API Key': [
-        r'SK[a-z0-9]{32}'
-    ],
+    # 'Twilio API Key': [
+    #     r'SK[a-z0-9]{32}'
+    # ],
     'SendGrid API Key': [
         r'SG\.[a-zA-Z0-9_-]{22}\.[a-zA-Z0-9_-]{43}'
     ],
