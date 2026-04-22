@@ -43,7 +43,7 @@ LeakGorilla automates the tedious process of hunting for exposed secrets in web 
 
 ### Payment & Communication
 - **Stripe** API Keys (Live & Test)
-- ~~Twilio API Keys~~ (disabled by default)
+- **Twilio** API Keys
 - **SendGrid** API Keys
 - **Mailgun** API Keys
 
@@ -61,6 +61,36 @@ LeakGorilla automates the tedious process of hunting for exposed secrets in web 
 ---
 
 ## 🚀 Quick Start
+
+### Setup: Python virtual environment
+
+Create and activate a virtual environment, then install dependencies.
+
+Linux / macOS (bash / zsh):
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Windows (PowerShell):
+```powershell
+python -m venv .venv
+.\\.venv\\Scripts\\Activate.ps1
+pip install -r requirements.txt
+```
+
+Windows (cmd.exe):
+```cmd
+python -m venv .venv
+.\\.venv\\Scripts\\activate.bat
+pip install -r requirements.txt
+```
+
+Deactivate the virtual environment with:
+```bash
+deactivate
+```
 
 ### Basic Scan
 Scan a website for exposed secrets:
@@ -107,8 +137,16 @@ leakgorilla <url> [options]
 |--------|-------------|---------|
 | `--max-pages N` | Maximum number of pages to crawl | 50 |
 | `--timeout N` | HTTP request timeout in seconds | 10 |
+| `--delay N` | Delay between requests (rate limiting) | 0 |
+| `--proxy URL` | Proxy URL (e.g., Burp Suite) | None |
+| `--verbose, -v` | Verbose output for debugging | False |
 | `--output FILE` | Output file path | web_secrets.txt |
-| `--format FORMAT` | Output format: `txt` or `json` | txt |
+| `--format FORMAT` | Output format: `txt`, `json`, or `html` | txt |
+| `--wayback` | Also scan Wayback Machine archives | False |
+| `--patterns FILE` | Custom patterns JSON file | None |
+| `--create-patterns` | Generate example custom_patterns.json | - |
+| `--resume FILE` | Save/load scan state for resuming | None |
+| `--clear-resume FILE` | Clear a saved resume state file | - |
 
 ### Examples
 
@@ -150,6 +188,54 @@ leakgorilla https://api.example.com --format json --output api_secrets.json
 **4. JSON Output for Automation (Python)**
 ```bash
 python3 leakgorilla/scanner.py https://api.example.com --format json --output api_secrets.json
+```
+
+**5. HTML Report (APT)**
+```bash
+leakgorilla https://example.com --format html --output report.html
+```
+
+**5. HTML Report (Python)**
+```bash
+python3 leakgorilla/scanner.py https://example.com --format html --output report.html
+```
+
+**6. Wayback Machine Scan (APT)**
+```bash
+leakgorilla https://example.com --wayback
+```
+
+**6. Wayback Machine Scan (Python)**
+```bash
+python3 leakgorilla/scanner.py https://example.com --wayback
+```
+
+**7. Resume Interrupted Scan (APT)**
+```bash
+leakgorilla https://example.com --resume scan_state.json
+```
+
+**7. Resume Interrupted Scan (Python)**
+```bash
+python3 leakgorilla/scanner.py https://example.com --resume scan_state.json
+```
+
+**8. Custom Patterns (APT)**
+```bash
+# Generate example patterns file
+leakgorilla https://example.com --create-patterns
+
+# Use custom patterns
+leakgorilla https://example.com --patterns custom_patterns.json
+```
+
+**8. Custom Patterns (Python)**
+```bash
+# Generate example patterns file
+python3 leakgorilla/scanner.py https://example.com --create-patterns
+
+# Use custom patterns
+python3 leakgorilla/scanner.py https://example.com --patterns custom_patterns.json
 ```
 
 ---
@@ -301,7 +387,7 @@ LeakGorilla uses regex patterns to detect secrets. Accuracy varies by secret typ
 - ✅ Stripe API Keys
 - ✅ Slack Tokens
 - ✅ Database Connection Strings
-- ❌ Twilio API Keys (disabled by default)
+- ✅ Twilio API Keys
 
 ### Medium Accuracy (70-80%)
 - ⚠️ Google API Keys
@@ -346,3 +432,28 @@ MIT License - Copyright (c) 2026 Jeffrey Hawchab
 ---
 
 **Remember**: With great power comes great responsibility. Use LeakGorilla ethically and legally. 🦍
+
+## New Features (2026-02-27)
+
+- Rotating proxies with optional validation and background re-validation (`--proxies-file`, `--stream-proxies`, `--validate-proxies`, `--revalidate-minutes`).
+- Randomized user-agents loaded once and per-request rotation to reduce fingerprinting.
+- Configurable delay range (`--delay-min`, `--delay-max`) and lower default `--timeout` (4s) for faster scans.
+- Threaded, concurrent crawler with increased `--max-workers` for higher throughput.
+- Search-engine seeding from `dorks.conf` (supports searx, DuckDuckGo, Yandex) via `--use-search` to collect initial targets.
+- CSS files are skipped by default to reduce false positives; only HTML and JavaScript are scanned.
+
+See examples in the CLI section for usage of the new options.
+
+### Async Crawler
+
+- Added an aiohttp-based async crawler for higher throughput and lower overhead on I/O-bound scans. Use the `--async` flag to enable it. Example:
+
+```bash
+python3 leakgorilla/scanner.py https://example.com --async --max-workers 50
+```
+
+### False Positive Reductions
+
+- Introduced `WHITELIST` rules to ignore long base64/blob-like matches and common image/assets, reducing false positives.
+- Tightened generic secret patterns to require longer token lengths by default.
+

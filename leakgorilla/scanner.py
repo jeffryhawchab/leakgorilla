@@ -5,12 +5,21 @@ Author: Jeffrey Hawchab
 GitHub: https://github.com/jeffryhawchab/leakgorilla
 """
 
+import sys
+import os
 import argparse
-import asyncio
+from urllib.parse import urlparse
+
+# Allow running directly with: python leakgorilla/scanner.py
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from leakgorilla.crawler import crawl_and_scan
-from leakgorilla import search
-from leakgorilla.async_crawler import crawl_async
 from leakgorilla.reporter import save_findings, print_findings
+from leakgorilla.html_report import generate_html_report
+from leakgorilla.wayback import scan_wayback
+from leakgorilla.patterns_loader import load_custom_patterns, create_example_patterns_file
+from leakgorilla.resume import clear_state
+import leakgorilla.config as config
 
 
 def main():
@@ -19,100 +28,82 @@ def main():
         epilog='Author: Jeffrey Hawchab | GitHub: https://github.com/jeffryhawchab/leakgorilla',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    epilog = (
-        'Author: Jeffrey Hawchab | GitHub: https://github.com/jeffryhawchab/leakgorilla\n'
-        '\nExamples:\n'
-        '  python3 leakgorilla/scanner.py https://example.com --max-pages 100 --timeout 8\n'
-        '  python3 leakgorilla/scanner.py https://example.com --proxies-file proxies.txt --stream-proxies --validate-proxies\n'
-        '  python3 leakgorilla/scanner.py https://example.com --use-search --dorks-file dorks.conf --async\n'
-    )
-
-    parser.epilog = epilog
-
     parser.add_argument('url', help='Target URL to scan')
     parser.add_argument('--max-pages', type=int, default=50, help='Maximum pages to scan (default: 50)')
-    parser.add_argument('--timeout', type=int, default=4, help='Request timeout in seconds (default: 4)')
-    parser.add_argument('--delay-min', type=float, default=0.15, help='Minimum delay between requests in seconds (default: 0.15)')
-    parser.add_argument('--delay-max', type=float, default=0.3, help='Maximum delay between requests in seconds (default: 0.3)')
-    parser.add_argument('--proxy', help='Single proxy URL (e.g., http://127.0.0.1:8080)')
-    parser.add_argument('--proxies-file', help='Path to a file with proxies (one per line)')
-    parser.add_argument('--stream-proxies', action='store_true', help='Load proxies line-by-line to avoid large memory usage')
-    parser.add_argument('--validate-proxies', action='store_true', help='Validate proxies before use')
-    parser.add_argument('--max-workers', type=int, default=10, help='Max concurrent workers (default: 10)')
-    parser.add_argument('--use-search', action='store_true', help='Seed crawl using search engines and dorks')
-    parser.add_argument('--dorks-file', default='dorks.conf', help='Dorks config file to use for search seeding')
-    parser.add_argument('--async', dest='use_async', action='store_true', help='Use async aiohttp crawler for better performance')
-    parser.add_argument('--revalidate-minutes', type=int, default=0, help='Background proxy re-validation interval in minutes (0 to disable)')
+    parser.add_argument('--timeout', type=int, default=10, help='Request timeout in seconds (default: 10)')
+    parser.add_argument('--delay', type=float, default=0, help='Delay between requests in seconds (default: 0)')
+    parser.add_argument('--proxy', help='Proxy URL (e.g., http://127.0.0.1:8080)')
     parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output')
     parser.add_argument('--output', default='web_secrets.txt', help='Output file (default: web_secrets.txt)')
-    parser.add_argument('--format', choices=['txt', 'json'], default='txt', help='Output format (default: txt)')
-    
+    parser.add_argument('--format', choices=['txt', 'json', 'html'], default='txt', help='Output format: txt, json, html (default: txt)')
+    parser.add_argument('--wayback', action='store_true', help='Also scan Wayback Machine archives')
+    parser.add_argument('--patterns', help='Custom patterns JSON file (use --create-patterns to generate example)')
+    parser.add_argument('--create-patterns', action='store_true', help='Create example custom_patterns.json file')
+    parser.add_argument('--resume', help='Resume file to save/load scan state (e.g., scan_state.json)')
+    parser.add_argument('--clear-resume', help='Clear a saved resume state file')
+
     args = parser.parse_args()
-    
+
+    # Handle utility commands
+    if args.create_patterns:
+        create_example_patterns_file()
+        return
+
+    if args.clear_resume:
+        clear_state(args.clear_resume)
+        return
+
+    # Load custom patterns if provided
+    if args.patterns:
+        config.PATTERNS, config.SEVERITY = load_custom_patterns(args.patterns)
+
     start_url = args.url
     if not start_url.startswith(('http://', 'https://')):
         start_url = 'https://' + start_url
-    
+
     print(f"\n{'='*80}")
     print(f"LeakGorilla - Advanced Web Secret Scanner")
     print(f"{'='*80}")
-    print(f"Target: {start_url}")
+    print(f"Target:    {start_url}")
     print(f"Max Pages: {args.max_pages}")
-    print(f"Timeout: {args.timeout}s")
-    print(f"Delay range: {args.delay_min}-{args.delay_max}s")
+    print(f"Timeout:   {args.timeout}s")
+    if args.delay:
+        print(f"Delay:     {args.delay}s")
     if args.proxy:
-        print(f"Proxy: {args.proxy}")
-    if args.proxies_file:
-        print(f"Proxy list: {args.proxies_file} (stream={args.stream_proxies})")
-    if args.revalidate_minutes:
-        print(f"Proxy revalidation: every {args.revalidate_minutes} minute(s)")
+        print(f"Proxy:     {args.proxy}")
+    if args.wayback:
+        print(f"Wayback:   Enabled")
+    if args.patterns:
+        print(f"Patterns:  {args.patterns}")
+    if args.resume:
+        print(f"Resume:    {args.resume}")
     if args.verbose:
-        print(f"Verbose: Enabled")
+        print(f"Verbose:   Enabled")
     print(f"{'='*80}\n")
-    
-    seed = None
-    if args.use_search:
-        print("Seeding URLs from search engines using dorks...")
-        seed = search.seed_urls_from_search(args.dorks_file)
-        print(f"  → Collected {len(seed)} seed URLs from search engines")
 
-    if args.use_async:
-        print("Using async aiohttp crawler...")
-        findings, visited = asyncio.run(crawl_async(
-            seed if seed else start_url,
-            max_pages=args.max_pages,
-            timeout=args.timeout,
-            delay_min=args.delay_min,
-            delay_max=args.delay_max,
-            proxies_file=args.proxies_file,
-            stream_proxies=args.stream_proxies,
-            validate_proxies=args.validate_proxies,
-            revalidate_minutes=args.revalidate_minutes,
-            max_workers=args.max_workers,
-            verbose=args.verbose
-        ))
-    else:
-        findings, visited = crawl_and_scan(
-            seed if seed else start_url,
-            args.max_pages,
-            timeout=args.timeout,
-            proxy=args.proxy,
-            verbose=args.verbose,
-            proxies_file=args.proxies_file,
-            stream_proxies=args.stream_proxies,
-            validate_proxies=args.validate_proxies,
-            revalidate_minutes=args.revalidate_minutes,
-            delay_min=args.delay_min,
-            delay_max=args.delay_max,
-            max_workers=args.max_workers
-        )
-    
+    # Main crawl
+    findings, visited = crawl_and_scan(
+        start_url, args.max_pages, args.timeout,
+        args.delay, args.proxy, args.verbose, args.resume
+    )
+
+    # Wayback Machine scan
+    if args.wayback:
+        domain = urlparse(start_url).netloc
+        wayback_findings = scan_wayback(domain, args.max_pages, args.timeout)
+        findings.extend(wayback_findings)
+
     print(f"\n{'='*80}")
     print(f"Scan completed: {len(visited)} pages scanned")
     print(f"{'='*80}")
-    
+
     if findings:
-        save_findings(findings, args.output, args.format)
+        # Save output
+        if args.format == 'html':
+            generate_html_report(findings, args.output.replace('.txt', '.html'), start_url)
+        else:
+            save_findings(findings, args.output, args.format)
+
         print_findings(findings)
         print(f"\n✓ Full results saved to {args.output}")
     else:

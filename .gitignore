@@ -1,2 +1,52 @@
-.qodo
--p
+# Virtual Environments
+env/
+venv/
+.venv/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Scan Output Files
+*.txt
+*.json
+*.html
+*.csv
+!requirements.txt
+!custom_patterns.json
+
+# Resume State Files
+scan_state.json
+*_state.json
+
+# IDE & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Secrets & Credentials
+.env
+.env.*
+secrets.txt
+credentials.json
+
+# Debian Build
+*.deb

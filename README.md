@@ -137,8 +137,16 @@ leakgorilla <url> [options]
 |--------|-------------|---------|
 | `--max-pages N` | Maximum number of pages to crawl | 50 |
 | `--timeout N` | HTTP request timeout in seconds | 10 |
+| `--delay N` | Delay between requests (rate limiting) | 0 |
+| `--proxy URL` | Proxy URL (e.g., Burp Suite) | None |
+| `--verbose, -v` | Verbose output for debugging | False |
 | `--output FILE` | Output file path | web_secrets.txt |
-| `--format FORMAT` | Output format: `txt` or `json` | txt |
+| `--format FORMAT` | Output format: `txt`, `json`, or `html` | txt |
+| `--wayback` | Also scan Wayback Machine archives | False |
+| `--patterns FILE` | Custom patterns JSON file | None |
+| `--create-patterns` | Generate example custom_patterns.json | - |
+| `--resume FILE` | Save/load scan state for resuming | None |
+| `--clear-resume FILE` | Clear a saved resume state file | - |
 
 ### Examples
 
@@ -180,6 +188,54 @@ leakgorilla https://api.example.com --format json --output api_secrets.json
 **4. JSON Output for Automation (Python)**
 ```bash
 python3 leakgorilla/scanner.py https://api.example.com --format json --output api_secrets.json
+```
+
+**5. HTML Report (APT)**
+```bash
+leakgorilla https://example.com --format html --output report.html
+```
+
+**5. HTML Report (Python)**
+```bash
+python3 leakgorilla/scanner.py https://example.com --format html --output report.html
+```
+
+**6. Wayback Machine Scan (APT)**
+```bash
+leakgorilla https://example.com --wayback
+```
+
+**6. Wayback Machine Scan (Python)**
+```bash
+python3 leakgorilla/scanner.py https://example.com --wayback
+```
+
+**7. Resume Interrupted Scan (APT)**
+```bash
+leakgorilla https://example.com --resume scan_state.json
+```
+
+**7. Resume Interrupted Scan (Python)**
+```bash
+python3 leakgorilla/scanner.py https://example.com --resume scan_state.json
+```
+
+**8. Custom Patterns (APT)**
+```bash
+# Generate example patterns file
+leakgorilla https://example.com --create-patterns
+
+# Use custom patterns
+leakgorilla https://example.com --patterns custom_patterns.json
+```
+
+**8. Custom Patterns (Python)**
+```bash
+# Generate example patterns file
+python3 leakgorilla/scanner.py https://example.com --create-patterns
+
+# Use custom patterns
+python3 leakgorilla/scanner.py https://example.com --patterns custom_patterns.json
 ```
 
 ---
